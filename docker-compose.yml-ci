@@ -1,0 +1,16 @@
+version: "3"
+services:
+  ci_base: &ci_base
+    image: ${DC_TEST_IMAGE}
+    user: root
+    volumes:
+      - "./log:/app/log"
+      - "./coverage:/app/coverage"
+      - "./test/reports:/app/test/reports"
+    environment:
+      RACK_ENV: test
+    logging:
+      driver: json-file
+  test_unit:
+    <<: *ci_base
+    command: sh -c 'bundle exec rake test' .

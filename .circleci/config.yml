@@ -1,0 +1,42 @@
+version: 2
+jobs:
+  build:
+    machine: true
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          name: Build Docker image
+          command: |
+            BUILD_TAG=emjio/test_app_1:${CIRCLE_BRANCH}_${CIRCLE_SHA1}
+            LATEST_TAG=emjio/test_app_1:latest
+            docker login -u emjio -p ${DOCKERHUB_PASSWORD}
+            echo "Looking for docker image cache"
+            echo $LATEST_TAG
+            docker pull $LATEST_TAG || echo "No latest tag exists for cache"
+            docker build --cache-from $LATEST_TAG -t $BUILD_TAG .
+            docker push $BUILD_TAG
+            docker tag $BUILD_TAG $LATEST_TAG
+            docker push $LATEST_TAG
+      - run:
+          name: Run test with Docker image
+          command: |
+            export DC_TEST_IMAGE=emjio/test_app_1:${CIRCLE_BRANCH}_${CIRCLE_SHA1}
+            mkdir -p tmp log coverage test/reports
+            chmod -R 777 tmp log coverage test/reports
+            docker-compose -f docker-compose.yml-ci run --rm test_unit
+      - store_artifacts:
+          path: ~/repo/log
+      - store_artifacts:
+          path: ~/repo/coverage
+      - store_artifacts:
+          path: ~/repo/test/reports
+      - store_test_results:
+          path: ~/repo/test/reports
+      # - run:
+      #     name: Create ready tag
+      #     command: |
+      #       git config --global user.email "eric.johnson@mycase.com"
+      #       git config --global user.name "eric.johnson"
+      #       git tag -a ready/${CIRCLE_BRANCH}_${CIRCLE_SHA1} -m "mark the branch to be ready for releasing"
+      #       git push origin ready/${CIRCLE_BRANCH}_${CIRCLE_SHA1}
